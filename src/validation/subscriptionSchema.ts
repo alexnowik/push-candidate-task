@@ -41,14 +41,23 @@ export const subscriptionValidationContext: SubscriptionValidationContext = {
 export function createSubscriptionSchema(context: SubscriptionValidationContext) {
   return z
     .object({
-      tier: z.enum(TIERS),
-      billingCycle: z.enum(BILLING_CYCLES),
+      tier: z.enum(TIERS, {
+        required_error: 'Tier is required',
+        invalid_type_error: 'Tier is required',
+      }),
+      billingCycle: z.enum(BILLING_CYCLES, {
+        required_error: 'Billing cycle is required',
+        invalid_type_error: 'Billing cycle is required',
+      }),
       seatCount: z
         .number({ invalid_type_error: 'Seat count is required' })
         .int('Seat count must be a whole number')
         .positive('Seat count must be at least 1'),
-      addOnIds: z.array(z.enum(ADD_ON_IDS)),
-      promoCode: z.string(),
+      addOnIds: z.array(z.enum(ADD_ON_IDS), {
+        required_error: 'Add-ons are required',
+        invalid_type_error: 'Add-ons must be a list',
+      }),
+      promoCode: z.string().default(''),
     })
     .superRefine((data, ctx) => {
       // ── promoCode ────────────────────────────────────────────────────────

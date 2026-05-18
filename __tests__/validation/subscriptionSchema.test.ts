@@ -15,6 +15,11 @@ function errorPaths(result: ReturnType<typeof subscriptionSchema.safeParse>): Re
   return result.error.issues.map((i) => i.path.join('.'));
 }
 
+function issueMessages(result: ReturnType<typeof subscriptionSchema.safeParse>): ReadonlyArray<string> {
+  if (result.success) return [];
+  return result.error.issues.map((i) => i.message);
+}
+
 describe('subscriptionSchema — defaults', () => {
   test('default form values are valid', () => {
     const result = subscriptionSchema.safeParse(DEFAULT_SUBSCRIPTION_VALUES);
@@ -61,6 +66,28 @@ describe('subscriptionSchema — add-on rules', () => {
       build({ tier: 'pro', billingCycle: 'monthly', seatCount: 10, addOnIds: ['api_access'] }),
     );
     expect(result.success).toBe(true);
+  });
+
+  test('add-on order does not affect validity', () => {
+    const forward = subscriptionSchema.safeParse(
+      build({
+        tier: 'pro',
+        billingCycle: 'monthly',
+        seatCount: 10,
+        addOnIds: ['storage_500', 'api_access'],
+      }),
+    );
+    const reversed = subscriptionSchema.safeParse(
+      build({
+        tier: 'pro',
+        billingCycle: 'monthly',
+        seatCount: 10,
+        addOnIds: ['api_access', 'storage_500'],
+      }),
+    );
+
+    expect(forward.success).toBe(true);
+    expect(reversed.success).toBe(true);
   });
 
   test('monthly pro: rejects more than 2 add-ons', () => {
@@ -130,6 +157,41 @@ describe('subscriptionSchema — add-on rules', () => {
 });
 
 describe('subscriptionSchema — seat count boundaries', () => {
+  test.each([
+    { tier: 'basic', billingCycle: 'monthly', min: 1, max: 10 },
+    { tier: 'pro', billingCycle: 'monthly', min: 5, max: 18 },
+    { tier: 'enterprise', billingCycle: 'monthly', min: 10, max: 500 },
+    { tier: 'basic', billingCycle: 'annual', min: 1, max: 20 },
+    { tier: 'pro', billingCycle: 'annual', min: 21, max: 90 },
+    { tier: 'enterprise', billingCycle: 'annual', min: 101, max: 1000 },
+  ] as const)(
+    '$tier $billingCycle accepts min/max and rejects outside bounds',
+    ({ tier, billingCycle, min, max }) => {
+      expect(subscriptionSchema.safeParse(build({ tier, billingCycle, seatCount: min })).success).toBe(
+        true,
+      );
+      expect(subscriptionSchema.safeParse(build({ tier, billingCycle, seatCount: max })).success).toBe(
+        true,
+      );
+      expect(
+        subscriptionSchema.safeParse(build({ tier, billingCycle, seatCount: min - 1 })).success,
+      ).toBe(false);
+      expect(
+        subscriptionSchema.safeParse(build({ tier, billingCycle, seatCount: max + 1 })).success,
+      ).toBe(false);
+      expect(
+        subscriptionSchema.safeParse(
+          build({ tier, billingCycle, seatCount: max + 10, promoCode: 'AB1234' }),
+        ).success,
+      ).toBe(true);
+      expect(
+        subscriptionSchema.safeParse(
+          build({ tier, billingCycle, seatCount: max + 11, promoCode: 'AB1234' }),
+        ).success,
+      ).toBe(false);
+    },
+  );
+
   test('monthly basic max is 10 without promo, 20 with valid promo', () => {
     const without = subscriptionSchema.safeParse(
       build({ tier: 'basic', billingCycle: 'monthly', seatCount: 11 }),
@@ -214,6 +276,15 @@ describe('subscriptionSchema — promo code', () => {
     expect(result.success).toBe(true);
   });
 
+  test('missing promo defaults to empty input', () => {
+    const withoutPromo: Partial<SubscriptionFormValues> = { ...DEFAULT_SUBSCRIPTION_VALUES };
+    delete withoutPromo.promoCode;
+    const result = subscriptionSchema.safeParse(withoutPromo);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.promoCode).toBe('');
+  });
+
   test('malformed promo is rejected', () => {
     const result = subscriptionSchema.safeParse(
       build({ tier: 'basic', billingCycle: 'monthly', seatCount: 5, promoCode: 'nope' }),
@@ -234,6 +305,19 @@ describe('subscriptionSchema — promo code', () => {
 });
 
 describe('subscriptionSchema — rule ordering', () => {
+  test('duplicate error fires before pool, storage, or cap checks', () => {
+    const result = subscriptionSchema.safeParse(
+      build({
+        tier: 'basic',
+        billingCycle: 'monthly',
+        seatCount: 5,
+        addOnIds: ['storage_500', 'storage_500', 'api_access'],
+      }),
+    );
+    expect(result.success).toBe(false);
+    expect(issueMessages(result)[0]).toMatch(/Duplicate add-ons/);
+  });
+
   test('pool-membership error fires instead of count-cap error on the same input', () => {
     const result = subscriptionSchema.safeParse(
       build({
@@ -248,6 +332,34 @@ describe('subscriptionSchema — rule ordering', () => {
     const addOnIssues = result.error.issues.filter((i) => i.path[0] === 'addOnIds');
     expect(addOnIssues).toHaveLength(1);
     expect(addOnIssues[0]?.message).toMatch(/Not available/);
+  });
+
+  test('storage-conflict error fires before count-cap error once ids are in-pool', () => {
+    const result = subscriptionSchema.safeParse(
+      build({
+        tier: 'pro',
+        billingCycle: 'monthly',
+        seatCount: 10,
+        addOnIds: ['storage_100', 'storage_500', 'api_access'],
+      }),
+    );
+    expect(result.success).toBe(false);
+    expect(issueMessages(result)[0]).toMatch(/either 100 GB storage or 500 GB storage/);
+  });
+});
+
+describe('subscriptionSchema — malformed payloads', () => {
+  test.each([
+    [{ ...DEFAULT_SUBSCRIPTION_VALUES, tier: undefined }, 'tier'],
+    [{ ...DEFAULT_SUBSCRIPTION_VALUES, billingCycle: 'weekly' }, 'billingCycle'],
+    [{ ...DEFAULT_SUBSCRIPTION_VALUES, seatCount: Number.NaN }, 'seatCount'],
+    [{ ...DEFAULT_SUBSCRIPTION_VALUES, seatCount: '10' }, 'seatCount'],
+    [{ ...DEFAULT_SUBSCRIPTION_VALUES, addOnIds: undefined }, 'addOnIds'],
+    [{ ...DEFAULT_SUBSCRIPTION_VALUES, addOnIds: ['storage_100', 'not_real'] }, 'addOnIds.1'],
+  ])('rejects malformed payload %#', (payload, expectedPath) => {
+    const result = subscriptionSchema.safeParse(payload);
+    expect(result.success).toBe(false);
+    expect(errorPaths(result)).toContain(expectedPath);
   });
 });
 

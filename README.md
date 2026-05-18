@@ -40,7 +40,7 @@ __tests__/                   focused domain, reconciliation, schema tests
 ## Assumptions and trade-offs
 
 - Promo code is format-only: any `AB1234`-shaped value grants +10 max seats. There is no promo registry or async validation.
-- Storage note: `storage_100` and `storage_500` are kept as required catalog IDs, but modeled as one storage-size choice because selecting both is not a coherent product configuration. This local extension is isolated in `findConflictingStorageAddOnIds`.
+- Storage note: `storage_100` and `storage_500` are kept as required catalog IDs, but interpreted as mutually exclusive storage capacity tiers, not stackable packages. This local extension is isolated in `findConflictingStorageAddOnIds`.
 - Pricing is intentionally out of scope. The brief provides no price table, currency, discounts, proration, or add-on prices, so the UI does not invent an estimated total.
 - Submission is local only. A valid submit renders an inline summary of the last valid configuration; there is no API call.
 - The form is a single scrollable page. With more fields it would become a wizard, but the current surface area is small enough to keep together.
