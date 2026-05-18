@@ -27,23 +27,23 @@ import { PrimaryButton } from './shared/PrimaryButton';
 export function SubscriptionForm() {
   const methods = useSubscriptionForm();
   const [submittedValues, setSubmittedValues] = useState<SubscriptionFormValues | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const isSubmitting = methods.formState.isSubmitting;
+  // Derive submission-error state from RHF rather than a parallel useState:
+  // a stale local flag would keep the button red after the user has already
+  // fixed the highlighted fields (reValidateMode is 'onChange').
+  const { isSubmitting, isSubmitted, isValid } = methods.formState;
+  const hasSubmitError = isSubmitted && !isValid;
 
   const handleValid = useCallback(async (data: SubscriptionFormValues) => {
     setSubmittedValues(null);
-    setSubmitError(null);
     await delay(700);
     setSubmittedValues(data);
   }, []);
   const handleInvalid = useCallback(() => {
     setSubmittedValues(null);
-    setSubmitError('Please fix the highlighted fields before submitting.');
   }, []);
   const handleReset = useCallback(() => {
     methods.reset(DEFAULT_SUBSCRIPTION_VALUES);
     setSubmittedValues(null);
-    setSubmitError(null);
   }, [methods]);
 
   const handleSubmit = methods.handleSubmit(handleValid, handleInvalid);
@@ -72,15 +72,21 @@ export function SubscriptionForm() {
         <View style={styles.actions}>
           <View style={styles.submitAction}>
             <PrimaryButton
-              label={isSubmitting ? 'Saving...' : 'Submit'}
+              label={isSubmitting ? 'Saving...' : hasSubmitError ? 'Fix errors' : 'Submit'}
               onPress={handleSubmit}
               disabled={isSubmitting}
+              tone={hasSubmitError ? 'error' : 'primary'}
             />
           </View>
           <ResetButton onPress={handleReset} disabled={isSubmitting} />
         </View>
         {isSubmitting ? <ProgressNotice /> : null}
-        {submitError ? <InlineNotice message={submitError} tone="error" /> : null}
+        {hasSubmitError ? (
+          <InlineNotice
+            message="Please fix the highlighted fields before submitting."
+            tone="error"
+          />
+        ) : null}
         {submittedValues ? <SubmissionSummary values={submittedValues} /> : null}
       </ScrollView>
     </FormProvider>
@@ -163,6 +169,7 @@ function ResetButton({ onPress, disabled }: ResetButtonProps) {
       disabled={disabled}
       style={disabled ? styles.resetButtonDisabled : styles.resetButton}
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
     >
       <Text style={styles.resetText}>Reset</Text>
     </Pressable>

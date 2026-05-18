@@ -4,15 +4,24 @@ type PrimaryButtonProps = Readonly<{
   label: string;
   onPress: () => void;
   disabled?: boolean | undefined;
+  tone?: 'primary' | 'error' | undefined;
 }>;
 
-export function PrimaryButton({ label, onPress, disabled = false }: PrimaryButtonProps) {
+export function PrimaryButton({
+  label,
+  onPress,
+  disabled = false,
+  tone = 'primary',
+}: PrimaryButtonProps) {
+  const style = disabled ? styles.buttonDisabled : tone === 'error' ? styles.buttonError : styles.button;
+
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={disabled ? styles.buttonDisabled : styles.button}
+      style={style}
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
     >
       <Text style={styles.label}>{label}</Text>
     </Pressable>
@@ -27,7 +36,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonDisabled: {
-    backgroundColor: '#9bbdf7',
+    backgroundColor: '#8c959f',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonError: {
+    backgroundColor: '#cf222e',
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',

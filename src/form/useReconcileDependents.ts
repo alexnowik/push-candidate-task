@@ -59,3 +59,14 @@ export function useReconcileDependents(): (change: ParentChange) => ReconcileSum
     [getValues, setValue],
   );
 }
+
+export function formatReconcileNotice(summary: ReconcileSummary | null): string | null {
+  if (!summary) return null;
+  const parts: string[] = [];
+  if (summary.seatCountAdjusted) parts.push(`seats set to ${summary.seatCount}`);
+  if (summary.addOnsAdjusted) {
+    const suffix = summary.removedAddOnCount === 1 ? 'add-on removed' : 'add-ons removed';
+    parts.push(`${summary.removedAddOnCount} ${suffix}`);
+  }
+  return `Configuration adjusted: ${parts.join(', ')}.`;
+}

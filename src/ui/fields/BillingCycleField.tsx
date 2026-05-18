@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useController, useFormContext } from 'react-hook-form';
 
 import { BILLING_CYCLES, getBillingCycleLabel, type BillingCycle } from '@/domain/subscription';
-import { type ReconcileSummary, useReconcileDependents } from '@/form/useReconcileDependents';
+import { formatReconcileNotice, useReconcileDependents } from '@/form/useReconcileDependents';
 import type { SubscriptionFormValues } from '@/validation/subscriptionSchema';
 
 import { FieldRow } from '../shared/FieldRow';
@@ -42,15 +42,4 @@ export function BillingCycleField() {
       {notice ? <InlineNotice message={notice} /> : null}
     </FieldRow>
   );
-}
-
-function formatReconcileNotice(summary: ReconcileSummary | null): string | null {
-  if (!summary) return null;
-  const parts: string[] = [];
-  if (summary.seatCountAdjusted) parts.push(`seats set to ${summary.seatCount}`);
-  if (summary.addOnsAdjusted) {
-    const suffix = summary.removedAddOnCount === 1 ? 'add-on removed' : 'add-ons removed';
-    parts.push(`${summary.removedAddOnCount} ${suffix}`);
-  }
-  return `Configuration adjusted: ${parts.join(', ')}.`;
 }
