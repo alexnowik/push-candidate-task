@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FormProvider } from 'react-hook-form';
 
 import {
@@ -24,12 +24,14 @@ import { PrimaryButton } from './shared/PrimaryButton';
 // not re-render on field changes.
 export function SubscriptionForm() {
   const methods = useSubscriptionForm();
+  const [submittedValues, setSubmittedValues] = useState<SubscriptionFormValues | null>(null);
 
   const handleValid = useCallback((data: SubscriptionFormValues) => {
-    Alert.alert('Subscription summary', formatSubscriptionSummary(data));
+    setSubmittedValues(data);
   }, []);
+  const handleInvalid = useCallback(() => setSubmittedValues(null), []);
 
-  const handleSubmit = methods.handleSubmit(handleValid);
+  const handleSubmit = methods.handleSubmit(handleValid, handleInvalid);
 
   return (
     <FormProvider {...methods}>
@@ -39,13 +41,21 @@ export function SubscriptionForm() {
           <Text style={styles.subtitle}>Choose a tier, billing cycle, seats, and add-ons.</Text>
         </View>
 
-        <TierField />
-        <BillingCycleField />
-        <SeatCountField />
-        <AddOnsField />
-        <PromoCodeField />
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Subscription</Text>
+          <TierField />
+          <BillingCycleField />
+          <SeatCountField />
+          <PromoCodeField />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Add-ons</Text>
+          <AddOnsField />
+        </View>
 
         <PrimaryButton label="Submit" onPress={handleSubmit} />
+        {submittedValues ? <SubmissionSummary values={submittedValues} /> : null}
       </ScrollView>
     </FormProvider>
   );
@@ -56,24 +66,69 @@ const styles = StyleSheet.create({
   header: { marginBottom: 20 },
   title: { fontSize: 22, fontWeight: '700', color: '#111' },
   subtitle: { fontSize: 14, color: '#555', marginTop: 4 },
+  section: { marginBottom: 8 },
+  sectionTitle: {
+    marginBottom: 12,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#57606a',
+    textTransform: 'uppercase',
+  },
+  summary: {
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#1e8e3e',
+    borderRadius: 8,
+    backgroundColor: '#e6f4ea',
+    padding: 14,
+  },
+  summaryTitle: { fontSize: 15, fontWeight: '700', color: '#1e4620', marginBottom: 8 },
+  summaryLine: { fontSize: 14, color: '#1f2328', marginTop: 2 },
+  summaryLabel: { fontWeight: '700' },
+  summaryAddOns: { marginTop: 8 },
 });
 
-function formatSubscriptionSummary(data: SubscriptionFormValues): string {
-  const addOns =
-    data.addOnIds.length > 0
-      ? data.addOnIds.map((id) => `• ${getAddOnLabel(id)}`).join('\n')
-      : 'None';
-  const promo = isValidPromoCodeFormat(data.promoCode)
-    ? `${data.promoCode} (+${PROMO_SEAT_BONUS} max seats)`
+type SubmissionSummaryProps = Readonly<{ values: SubscriptionFormValues }>;
+
+function SubmissionSummary({ values }: SubmissionSummaryProps) {
+  const addOns = formatAddOns(values);
+  const promo = isValidPromoCodeFormat(values.promoCode)
+    ? `${values.promoCode} (+${PROMO_SEAT_BONUS} max seats)`
     : 'None';
 
-  return [
-    `Tier: ${getTierLabel(data.tier)}`,
-    `Billing: ${getBillingCycleLabel(data.billingCycle)}`,
-    `Seats: ${data.seatCount}`,
-    `Promo: ${promo}`,
-    '',
-    'Add-ons:',
-    addOns,
-  ].join('\n');
+  return (
+    <View style={styles.summary} accessibilityRole="summary">
+      <Text style={styles.summaryTitle}>Last valid configuration</Text>
+      <Text style={styles.summaryLine}>
+        <Text style={styles.summaryLabel}>Tier: </Text>
+        {getTierLabel(values.tier)}
+      </Text>
+      <Text style={styles.summaryLine}>
+        <Text style={styles.summaryLabel}>Billing: </Text>
+        {getBillingCycleLabel(values.billingCycle)}
+      </Text>
+      <Text style={styles.summaryLine}>
+        <Text style={styles.summaryLabel}>Seats: </Text>
+        {values.seatCount}
+      </Text>
+      <Text style={styles.summaryLine}>
+        <Text style={styles.summaryLabel}>Promo: </Text>
+        {promo}
+      </Text>
+      <View style={styles.summaryAddOns}>
+        <Text style={styles.summaryLine}>
+          <Text style={styles.summaryLabel}>Add-ons: </Text>
+          {addOns}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function formatAddOns(data: SubscriptionFormValues): string {
+  const addOns =
+    data.addOnIds.length > 0
+      ? data.addOnIds.map((id) => getAddOnLabel(id)).join(', ')
+      : 'None';
+  return addOns;
 }

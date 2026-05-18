@@ -69,7 +69,7 @@ export function AddOnsField() {
   const hint = `Available: ${allowedSet.size} of ${ADD_ON_IDS.length}. Selected ${selected.length} of ${cap}.`;
 
   return (
-    <FieldRow label="Add-ons" hint={hint} error={fieldState.error?.message}>
+    <FieldRow label="Options" hint={hint} error={fieldState.error?.message}>
       <View style={styles.panel}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Storage</Text>
@@ -103,18 +103,18 @@ export function AddOnsField() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Services</Text>
           {SERVICE_ADD_ON_IDS.map((id) => {
-          const checked = selectedSet.has(id);
-          const isAllowed = allowedSet.has(id);
-          return (
-            <AddOnOption
-              key={id}
-              id={id}
-              checked={checked}
-              disabled={!checked && (!isAllowed || hasReachedCap)}
-              onToggle={handleToggle}
-            />
-          );
-        })}
+            const checked = selectedSet.has(id);
+            const isAllowed = allowedSet.has(id);
+            return (
+              <AddOnOption
+                key={id}
+                id={id}
+                checked={checked}
+                disabled={!checked && (!isAllowed || hasReachedCap)}
+                onToggle={handleToggle}
+              />
+            );
+          })}
         </View>
       </View>
     </FieldRow>
