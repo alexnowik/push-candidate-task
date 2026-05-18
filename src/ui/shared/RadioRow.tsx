@@ -3,12 +3,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 type RadioRowProps = Readonly<{
   label: string;
+  helper?: string | undefined;
   selected: boolean;
   disabled?: boolean | undefined;
   onSelect: () => void;
 }>;
 
-export function RadioRow({ label, selected, disabled = false, onSelect }: RadioRowProps) {
+export function RadioRow({ label, helper, selected, disabled = false, onSelect }: RadioRowProps) {
   const handlePress = useCallback(() => {
     if (!disabled) onSelect();
   }, [disabled, onSelect]);
@@ -28,7 +29,10 @@ export function RadioRow({ label, selected, disabled = false, onSelect }: RadioR
       <View style={selected ? styles.outerSelected : styles.outer}>
         {selected ? <View style={styles.inner} /> : null}
       </View>
-      <Text style={disabled ? styles.labelDisabled : styles.label}>{label}</Text>
+      <View style={styles.textColumn}>
+        <Text style={disabled ? styles.labelDisabled : styles.label}>{label}</Text>
+        {helper ? <Text style={disabled ? styles.helperDisabled : styles.helper}>{helper}</Text> : null}
+      </View>
     </Pressable>
   );
 }
@@ -73,6 +77,9 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#1f6feb',
   },
-  label: { flex: 1, fontSize: 15, color: '#1f2328' },
-  labelDisabled: { flex: 1, fontSize: 15, color: '#444' },
+  textColumn: { flex: 1 },
+  label: { fontSize: 15, color: '#1f2328' },
+  labelDisabled: { fontSize: 15, color: '#444' },
+  helper: { marginTop: 2, fontSize: 12, color: '#57606a' },
+  helperDisabled: { marginTop: 2, fontSize: 12, color: '#57606a' },
 });

@@ -84,13 +84,19 @@ export function AddOnsField() {
               const checked = selectedStorage === id;
               const isAllowed = allowedSet.has(id);
               const replacingStorage = selectedStorage !== null;
+              const helper = getUnavailableReason({
+                checked,
+                isAllowed,
+                hasReachedCap: hasReachedCap && !replacingStorage,
+              });
               return (
                 <StorageOption
                   key={id}
                   id={id}
                   label={getAddOnLabel(id)}
+                  helper={helper}
                   selected={checked}
-                  disabled={!checked && (!isAllowed || (hasReachedCap && !replacingStorage))}
+                  disabled={helper !== undefined}
                   onSelect={handleStorageChange}
                 />
               );
@@ -105,12 +111,14 @@ export function AddOnsField() {
           {SERVICE_ADD_ON_IDS.map((id) => {
             const checked = selectedSet.has(id);
             const isAllowed = allowedSet.has(id);
+            const helper = getUnavailableReason({ checked, isAllowed, hasReachedCap });
             return (
               <AddOnOption
                 key={id}
                 id={id}
+                helper={helper}
                 checked={checked}
-                disabled={!checked && (!isAllowed || hasReachedCap)}
+                disabled={helper !== undefined}
                 onToggle={handleToggle}
               />
             );
@@ -123,6 +131,7 @@ export function AddOnsField() {
 
 type AddOnOptionProps = Readonly<{
   id: AddOnId;
+  helper?: string | undefined;
   checked: boolean;
   disabled: boolean;
   onToggle: (id: AddOnId) => void;
@@ -131,21 +140,53 @@ type AddOnOptionProps = Readonly<{
 type StorageOptionProps = Readonly<{
   id: StorageAddOnId | null;
   label: string;
+  helper?: string | undefined;
   selected: boolean;
   disabled?: boolean | undefined;
   onSelect: (id: StorageAddOnId | null) => void;
 }>;
 
-function StorageOption({ id, label, selected, disabled, onSelect }: StorageOptionProps) {
+function StorageOption({ id, label, helper, selected, disabled, onSelect }: StorageOptionProps) {
   const handle = useCallback(() => onSelect(id), [id, onSelect]);
-  return <RadioRow label={label} selected={selected} disabled={disabled} onSelect={handle} />;
+  return (
+    <RadioRow
+      label={label}
+      helper={helper}
+      selected={selected}
+      disabled={disabled}
+      onSelect={handle}
+    />
+  );
 }
 
-function AddOnOption({ id, checked, disabled, onToggle }: AddOnOptionProps) {
+function AddOnOption({ id, helper, checked, disabled, onToggle }: AddOnOptionProps) {
   const handle = useCallback(() => onToggle(id), [id, onToggle]);
   return (
-    <CheckboxRow label={getAddOnLabel(id)} checked={checked} disabled={disabled} onToggle={handle} />
+    <CheckboxRow
+      label={getAddOnLabel(id)}
+      helper={helper}
+      checked={checked}
+      disabled={disabled}
+      onToggle={handle}
+    />
   );
+}
+
+type UnavailableReasonInput = Readonly<{
+  checked: boolean;
+  isAllowed: boolean;
+  hasReachedCap: boolean;
+}>;
+
+function getUnavailableReason({
+  checked,
+  isAllowed,
+  hasReachedCap,
+}: UnavailableReasonInput): string | undefined {
+  if (checked) return undefined;
+  if (!isAllowed) return 'Unavailable for this plan';
+  if (hasReachedCap) return 'Limit reached';
+  return undefined;
 }
 
 const styles = StyleSheet.create({

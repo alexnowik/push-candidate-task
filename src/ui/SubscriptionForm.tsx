@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FormProvider } from 'react-hook-form';
 
 import {
@@ -9,6 +9,7 @@ import {
   getTierLabel,
   isValidPromoCodeFormat,
 } from '@/domain/subscription';
+import { DEFAULT_SUBSCRIPTION_VALUES } from '@/form/defaultValues';
 import { useSubscriptionForm } from '@/form/useSubscriptionForm';
 import type { SubscriptionFormValues } from '@/validation/subscriptionSchema';
 
@@ -17,6 +18,7 @@ import { BillingCycleField } from './fields/BillingCycleField';
 import { PromoCodeField } from './fields/PromoCodeField';
 import { SeatCountField } from './fields/SeatCountField';
 import { TierField } from './fields/TierField';
+import { InlineNotice } from './shared/InlineNotice';
 import { PrimaryButton } from './shared/PrimaryButton';
 
 // The root holds RHF state once. It does NOT call `watch()` — every field
@@ -25,11 +27,24 @@ import { PrimaryButton } from './shared/PrimaryButton';
 export function SubscriptionForm() {
   const methods = useSubscriptionForm();
   const [submittedValues, setSubmittedValues] = useState<SubscriptionFormValues | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const isSubmitting = methods.formState.isSubmitting;
 
-  const handleValid = useCallback((data: SubscriptionFormValues) => {
+  const handleValid = useCallback(async (data: SubscriptionFormValues) => {
+    setSubmittedValues(null);
+    setSubmitError(null);
+    await delay(700);
     setSubmittedValues(data);
   }, []);
-  const handleInvalid = useCallback(() => setSubmittedValues(null), []);
+  const handleInvalid = useCallback(() => {
+    setSubmittedValues(null);
+    setSubmitError('Please fix the highlighted fields before submitting.');
+  }, []);
+  const handleReset = useCallback(() => {
+    methods.reset(DEFAULT_SUBSCRIPTION_VALUES);
+    setSubmittedValues(null);
+    setSubmitError(null);
+  }, [methods]);
 
   const handleSubmit = methods.handleSubmit(handleValid, handleInvalid);
 
@@ -54,7 +69,18 @@ export function SubscriptionForm() {
           <AddOnsField />
         </View>
 
-        <PrimaryButton label="Submit" onPress={handleSubmit} />
+        <View style={styles.actions}>
+          <View style={styles.submitAction}>
+            <PrimaryButton
+              label={isSubmitting ? 'Saving...' : 'Submit'}
+              onPress={handleSubmit}
+              disabled={isSubmitting}
+            />
+          </View>
+          <ResetButton onPress={handleReset} disabled={isSubmitting} />
+        </View>
+        {isSubmitting ? <ProgressNotice /> : null}
+        {submitError ? <InlineNotice message={submitError} tone="error" /> : null}
         {submittedValues ? <SubmissionSummary values={submittedValues} /> : null}
       </ScrollView>
     </FormProvider>
@@ -74,6 +100,43 @@ const styles = StyleSheet.create({
     color: '#57606a',
     textTransform: 'uppercase',
   },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  submitAction: { flex: 1 },
+  resetButton: {
+    minHeight: 48,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#d0d7de',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  resetButtonDisabled: {
+    minHeight: 48,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#d0d7de',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f6f8fa',
+    opacity: 0.6,
+  },
+  resetText: { color: '#1f2328', fontSize: 15, fontWeight: '600' },
+  progress: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#bf8700',
+    borderRadius: 8,
+    backgroundColor: '#fff8c5',
+    padding: 12,
+  },
+  progressText: { color: '#5f4b00', fontSize: 14, fontWeight: '600' },
   summary: {
     marginTop: 16,
     borderWidth: 1,
@@ -87,6 +150,32 @@ const styles = StyleSheet.create({
   summaryLabel: { fontWeight: '700' },
   summaryAddOns: { marginTop: 8 },
 });
+
+type ResetButtonProps = Readonly<{
+  onPress: () => void;
+  disabled: boolean;
+}>;
+
+function ResetButton({ onPress, disabled }: ResetButtonProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={disabled ? styles.resetButtonDisabled : styles.resetButton}
+      accessibilityRole="button"
+    >
+      <Text style={styles.resetText}>Reset</Text>
+    </Pressable>
+  );
+}
+
+function ProgressNotice() {
+  return (
+    <View style={styles.progress} accessibilityLiveRegion="polite">
+      <Text style={styles.progressText}>Saving configuration...</Text>
+    </View>
+  );
+}
 
 type SubmissionSummaryProps = Readonly<{ values: SubscriptionFormValues }>;
 
@@ -131,4 +220,10 @@ function formatAddOns(data: SubscriptionFormValues): string {
       ? data.addOnIds.map((id) => getAddOnLabel(id)).join(', ')
       : 'None';
   return addOns;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }

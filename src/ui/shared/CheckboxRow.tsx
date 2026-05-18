@@ -3,12 +3,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 type CheckboxRowProps = Readonly<{
   label: string;
+  helper?: string | undefined;
   checked: boolean;
   disabled?: boolean | undefined;
   onToggle: () => void;
 }>;
 
-export function CheckboxRow({ label, checked, disabled = false, onToggle }: CheckboxRowProps) {
+export function CheckboxRow({ label, helper, checked, disabled = false, onToggle }: CheckboxRowProps) {
   const handlePress = useCallback(() => {
     if (!disabled) onToggle();
   }, [disabled, onToggle]);
@@ -28,7 +29,10 @@ export function CheckboxRow({ label, checked, disabled = false, onToggle }: Chec
       <View style={checked ? styles.boxChecked : styles.box}>
         {checked ? <Text style={styles.boxMark}>✓</Text> : null}
       </View>
-      <Text style={disabled ? styles.labelDisabled : styles.label}>{label}</Text>
+      <View style={styles.textColumn}>
+        <Text style={disabled ? styles.labelDisabled : styles.label}>{label}</Text>
+        {helper ? <Text style={disabled ? styles.helperDisabled : styles.helper}>{helper}</Text> : null}
+      </View>
     </Pressable>
   );
 }
@@ -68,6 +72,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   boxMark: { color: '#fff', fontSize: 14, lineHeight: 16, fontWeight: '700' },
-  label: { flex: 1, fontSize: 15, color: '#1f2328' },
-  labelDisabled: { flex: 1, fontSize: 15, color: '#444' },
+  textColumn: { flex: 1 },
+  label: { fontSize: 15, color: '#1f2328' },
+  labelDisabled: { fontSize: 15, color: '#444' },
+  helper: { marginTop: 2, fontSize: 12, color: '#57606a' },
+  helperDisabled: { marginTop: 2, fontSize: 12, color: '#57606a' },
 });

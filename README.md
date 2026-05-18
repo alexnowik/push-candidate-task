@@ -31,17 +31,17 @@ __tests__/                   focused domain, reconciliation, schema tests
 - Seat validation always reads `tier + billingCycle + promoCode` together through `getSeatBounds`; bounds are never cached by billing cycle alone because monthly ranges intentionally overlap.
 - A single coherent schema is built by `createSubscriptionSchema(context)` and used by `subscriptionResolver`; the RHF context injects the rule surface (`getSeatBounds`, pool/cap helpers, duplicate/conflict finders).
 - `superRefine` ordering is intentional: promo format first, then add-on duplicates, pool membership, storage conflict, and cap. Each add-on stage returns after its first failure so the error stays specific.
-- `tier` and `billingCycle` changes reconcile dependents immediately: seats are clamped, unavailable add-ons are pruned, and selections over the new cap are trimmed.
+- `tier` and `billingCycle` changes reconcile dependents immediately: seats are clamped, unavailable add-ons are pruned, selections over the new cap are trimmed, and an inline notice explains the adjustment.
 - The screen never calls root `watch()`. Each field owns its own `useController`, and only fields that need parent values use scoped `useWatch`.
 - `SeatCountField` only watches `tier`, `billingCycle`, and `promoCode`; `AddOnsField` only watches `tier` and `billingCycle`; promo/add-on/seat changes do not fan out through the whole form.
 - The UI is grouped by product intent: `Subscription` for tier/billing/seats/promo, and `Add-ons` split into exclusive storage choice plus independent service toggles.
-- Add-on UX blocks preventable errors: disabled options reflect the current pool/cap, checked options remain removable, and storage can be swapped because it replaces one ID with another.
+- Add-on UX blocks preventable errors: disabled options explain whether they are unavailable or over the cap, checked options remain removable, and storage can be swapped because it replaces one ID with another.
 
 ## Assumptions and trade-offs
 
 - Promo code is format-only: any `AB1234`-shaped value grants +10 max seats. There is no promo registry or async validation.
 - Storage note: `storage_100` and `storage_500` are kept as required catalog IDs, but interpreted as mutually exclusive storage capacity tiers, not stackable packages. This local extension is isolated in `findConflictingStorageAddOnIds`.
 - Pricing is intentionally out of scope. The brief provides no price table, currency, discounts, proration, or add-on prices, so the UI does not invent an estimated total.
-- Submission is local only. A valid submit renders an inline summary of the last valid configuration; there is no API call.
+- Submission is local only. Invalid submit shows a form-level fix notice; valid submit shows a short simulated saving state and then renders an inline summary of the last valid configuration; Reset restores the default valid form state.
 - The form is a single scrollable page. With more fields it would become a wizard, but the current surface area is small enough to keep together.
 - Tests are focused on the validation contract and edge boundaries rather than component rendering.

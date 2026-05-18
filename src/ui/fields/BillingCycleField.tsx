@@ -1,11 +1,12 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useController, useFormContext } from 'react-hook-form';
 
 import { BILLING_CYCLES, getBillingCycleLabel, type BillingCycle } from '@/domain/subscription';
-import { useReconcileDependents } from '@/form/useReconcileDependents';
+import { type ReconcileSummary, useReconcileDependents } from '@/form/useReconcileDependents';
 import type { SubscriptionFormValues } from '@/validation/subscriptionSchema';
 
 import { FieldRow } from '../shared/FieldRow';
+import { InlineNotice } from '../shared/InlineNotice';
 import { SegmentedControl, type SegmentedOption } from '../shared/SegmentedControl';
 
 // Subscribes only to: `billingCycle` (own).
@@ -13,6 +14,7 @@ export function BillingCycleField() {
   const { control } = useFormContext<SubscriptionFormValues>();
   const { field, fieldState } = useController({ control, name: 'billingCycle' });
   const reconcile = useReconcileDependents();
+  const [notice, setNotice] = useState<string | null>(null);
 
   const options = useMemo<ReadonlyArray<SegmentedOption<BillingCycle>>>(
     () => BILLING_CYCLES.map((cycle) => ({ value: cycle, label: getBillingCycleLabel(cycle) })),
@@ -24,7 +26,7 @@ export function BillingCycleField() {
   const handleChange = useCallback(
     (next: BillingCycle) => {
       field.onChange(next);
-      reconcile({ billingCycle: next });
+      setNotice(formatReconcileNotice(reconcile({ billingCycle: next })));
     },
     [field, reconcile],
   );
@@ -37,6 +39,18 @@ export function BillingCycleField() {
         onChange={handleChange}
         accessibilityLabel="Billing cycle"
       />
+      {notice ? <InlineNotice message={notice} /> : null}
     </FieldRow>
   );
+}
+
+function formatReconcileNotice(summary: ReconcileSummary | null): string | null {
+  if (!summary) return null;
+  const parts: string[] = [];
+  if (summary.seatCountAdjusted) parts.push(`seats set to ${summary.seatCount}`);
+  if (summary.addOnsAdjusted) {
+    const suffix = summary.removedAddOnCount === 1 ? 'add-on removed' : 'add-ons removed';
+    parts.push(`${summary.removedAddOnCount} ${suffix}`);
+  }
+  return `Configuration adjusted: ${parts.join(', ')}.`;
 }
